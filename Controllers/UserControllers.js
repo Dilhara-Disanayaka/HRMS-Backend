@@ -1,13 +1,13 @@
 import Usermodles from '../Models/Usermodles.js';
 import bycrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { use } from 'react';
+//import mailer from '../Config/mailer.js';
 
 const loginuser=async(req,res)=>{
     try{
     const{username,password}=req.body
 
-        const result=await Usermodles.Authenticate(username)
+        const result=await Usermodles.findByUsername(username)
           if(result.length===0){        
                    console.log(result)
                    return res.status(404).json({success:false,message:"Invalid username ",code:"SSS-002"})
@@ -31,7 +31,7 @@ const loginuser=async(req,res)=>{
   res.status(500).json({ success: false, message: error.message });
 }
 };
-const registeruser=async(req,res)=>{
+/*const registeruser=async(req,res)=>{
     try{
         const{username,password}=req.body
         const message=await registeruser(username,password)
@@ -39,7 +39,7 @@ const registeruser=async(req,res)=>{
     }catch(error){
         res.json({sucess:false,massage:"fail registration"})
     }
-}
+}*/
 const logoutuser=async(req,res)=>{
   try {
     res.clearCookie('refreshToken');
@@ -48,16 +48,23 @@ const logoutuser=async(req,res)=>{
     res.status(500).json({ success: false, message: error.message });
   }
 }
-export default { loginuser, registeruser, logoutuser };
+const getUserDetails = async (req, res) => {
+    const employee_id = req.user.employee_id;
+
+    try {
+        const user = await Usermodels.getUserDetailsByEmployeeID(employee_id);
+        return res.status(200).json(user);
+    } 
+    catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
 
 const updateuserdetails=async(req,res)=>{
-  try {
-    const inputdata = req.body;
-    const id=req.user.id
-
-    const result = await Usermodles.UpdateUser(id, inputdata);
-    const employee_id = req.user.employee_id;
+  
     const inputData = req.body;
+    const id=req.user.id
 
     if(!inputData.name || inputData.name === '') {
         return res.status(400).json({ message: 'Name is required' });
@@ -88,7 +95,7 @@ const updateuserdetails=async(req,res)=>{
     }
 
     try {
-        const currentDetails = await User.getUserDetailsBriefById(employee_id);
+        const currentDetails = await Usermodels.getUserDetailsBriefById(employee_id);
 
         if((!!currentDetails.supervisor || !!inputData.supervisor) && currentDetails.supervisor !== inputData.supervisor) {
             return res.status(400).json({ message: 'Supervisor cannot be changed' });
@@ -129,9 +136,7 @@ const updateuserdetails=async(req,res)=>{
         return res.status(500).json({ message: 'Internal server error' });
     }
   res.status(200).json({ success: true, message: "User details updated successfully" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  
   
 };
 const getcustomattributes=async(req,res)=>{
@@ -215,7 +220,7 @@ const updatedependant=async (req, res) => {
             return res.status(400).json({ message: 'Dependant not found' });
         }
 
-        const dependant = await User.updateDependant({
+        const dependant = await Usermodels.updateDependant({
             dependant_id : inputData.dependant_id,
             name : inputData.name,
             birthday : inputData.birthday,
@@ -228,4 +233,203 @@ const updatedependant=async (req, res) => {
     console.error(error);
     return res.status(500).json({ message: 'Internal server error' });
   }
+};
+const deleteDependant = async (req, res) => {
+    const employee_id = req.user.employee_id;
+    const dependant_id = req.params.id;
+
+    try {
+        const oldDependants = await Usermodels.getDependantsByEmployeeId(employee_id);
+        console.log(oldDependants, dependant_id);
+        const oldDependant = oldDependants.find(dep => dep.dependant_id === dependant_id);
+
+        if(!oldDependant) {
+            return res.status(400).json({ message: 'Dependant not found' });
+        }
+
+        const dependant = await User.deleteDependant(dependant_id);
+        return res.status(200).json(dependant);
+    }
+    catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+const getEmergencyContacts = async (req, res) => {
+    const employee_id = req.user.employee_id;
+
+    try {
+        const emergencyContacts = await Usermodels.getEmergencyContactsByEmployeeId(employee_id);
+        return res.status(200).json(emergencyContacts);
+    } 
+    catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+const addEmergencyContact = async (req, res) => {
+    const employee_id = req.user.employee_id;
+    const inputData = req.body;
+
+    if(!inputData.contact_no || inputData.contact_no === '') {
+        return res.status(400).json({ message: 'Contact Number is required' });
+    }
+
+    if(!inputData.contact_name || inputData.contact_name === '') {
+        return res.status(400).json({ message: 'Name is required' });
+    }
+
+    if(!inputData.relationship || inputData.relationship === '') {
+        return res.status(400).json({ message: 'Relationship is required' });
+    }
+
+    try {
+        const emergencyContact = await Usermodels.addNewEmergencyContact({
+            employee_id : employee_id,
+            contact_no : inputData.contact_no,
+            contact_name : inputData.contact_name,
+            relationship : inputData.relationship
+        });
+        return res.status(200).json(emergencyContact);
+    }
+    catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+const updateEmergencyContact = async (req, res) => {
+    const employee_id = req.user.employee_id;
+    const {oldData, newData} = req.body;
+
+    if(!oldData || !newData) {
+        return res.status(400).json({ message: 'Old and New Data is required' });
+    }
+
+    if(!oldData.contact_no) {
+        return res.status(400).json({ message: 'Old Contact Number is required' });
+    }
+
+    if(!newData.contact_no) {
+        return res.status(400).json({ message: 'New Contact Number is required' });
+    }
+
+    if(!newData.contact_name) {
+        return res.status(400).json({ message: 'Name is required' });
+    }
+
+    if(!newData.relationship) {
+        return res.status(400).json({ message: 'Relationship is required' });
+    }
+
+    try {
+        const oldContacts = await Usermodels.getEmergencyContactsByEmployeeId(employee_id);
+
+        const oldContact = oldContacts.find(contact => contact.contact_no === oldData.contact_no);
+
+        if(!oldContact) {
+            return res.status(400).json({ message: 'Contact not found' });
+        }
+
+        const emergencyContact = await Usermodels.updateEmergencyContact({
+            employee_id : employee_id,
+            old_contact_no : oldContact.contact_no,
+            new_contact_no : newData.contact_no,
+            relationship : newData.relationship,
+            contact_name : newData.contact_name
+        });
+        return res.status(200).json(emergencyContact);
+    }
+    catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+const deleteEmergencyContact = async (req, res) => {
+    const employee_id = req.user.employee_id;
+    const contact_no = req.params.contact_no;
+
+    try {
+        const oldContacts = await Usermodels.getEmergencyContactsByEmployeeId(employee_id);
+
+        const oldContact = oldContacts.find(con => con.contact_no === contact_no);
+
+        if(!oldContact) {
+            return res.status(400).json({ message: 'Contact not found' });
+        }
+
+        const emergencyContact = await Usermodels.deleteEmergencyContact(employee_id, contact_no);
+        return res.status(200).json(emergencyContact);
+    }
+    catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+const forgetPassword = async (req, res) => {
+    const { username, email } = req.body;
+
+    try {
+        const users = await User.findByUsername(username);
+
+        if (users.length === 0) {
+            return res.status(401).json({ message: 'Invalid username' });
+        }
+
+        const user = users[0];
+
+        const userDetails = await Usermodels.getUserDetailsBriefById(user.employee_id);
+
+        if(userDetails.email !== email) {
+            return res.status(401).json({ message: 'Invalid email' });
+        }
+
+        const newPassword = generatePassword();
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        const updatedUser = await Usermodels.updateUser({
+            username: user.username,
+            password: hashedPassword,
+            role: user.role,
+            employee_id: user.employee_id
+        })
+
+        console.log(user);
+
+        mailer.sendMail({
+            from: process.env.MAIL_USER,
+            to: email,
+            subject: 'Forget Password',
+            text: `Your new password is ${newPassword}`
+        });
+
+
+        res.status(200).json({ updatedUser });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+export default {
+  loginuser,
+ // registeruser,
+  logoutuser,
+  updateuserdetails,
+  getcustomattributes,
+  updatecustomattributes,
+  getDependants,
+  addDependant,
+  updatedependant,
+  deleteDependant,
+  getEmergencyContacts,
+  addEmergencyContact,
+  updateEmergencyContact,
+  deleteEmergencyContact,
+  forgetPassword,
+  getUserDetails
 };
