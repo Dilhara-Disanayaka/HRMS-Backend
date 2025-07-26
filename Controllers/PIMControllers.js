@@ -1,7 +1,8 @@
-const { json } = require('express');
-const Employee = require('../models/employeeModel');
-const bcrypt = require('bcrypt');
-const mailer = require('../../../config/mailer');
+import express from 'express';
+
+import bcrypt from 'bcrypt';
+
+import mailer from '../Config/mailer.js';
 
 const generatePassword = (length = 10) => {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
@@ -532,7 +533,7 @@ const createUserAccount = async (req, res) => {
 }
 
 
-module.exports = {
+export default {
     getAllEmployees,
     getEmployeeCount,
     getEmployeeById,
