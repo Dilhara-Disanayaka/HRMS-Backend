@@ -10,12 +10,12 @@ const loginuser=async(req,res)=>{
     if (username === 'user1' && password === 'password1') {
        const payload = {
              id:"EMP000001",
-             userrole:"Admin"
+             userrole:"Manager"
          };
          const accesstoken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '10min' });
          const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' });
          res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true });
-         res.status(200).json({accesstoken,role:'Admin' });
+         res.status(200).json({accesstoken,role:'Manager' });
          console.log(accesstoken)
          return
       }
@@ -443,6 +443,29 @@ const forgetPassword = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 }
+const refreshToken = (req, res) => {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (error, user) => {
+        if (error) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+
+        const payload = { employee_id: user.employee_id, role: user.role };
+
+        const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '10min' });
+        const newRefreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' });
+
+        res.cookie('refreshToken', newRefreshToken, { httpOnly: true });
+        res.status(200).json({ accessToken });
+    });
+};
+
+
 export default {
   loginuser,
   registeruser,
@@ -459,5 +482,5 @@ export default {
   updateEmergencyContact,
   deleteEmergencyContact,
   forgetPassword,
-  getUserDetails
-};
+  getUserDetails,
+  refreshToken};
