@@ -1,10 +1,10 @@
-import db from '../Config/db.js';
+import db from '../Config/db.js';import bcrypt from 'bcrypt';
 const findByUsername = async (username) => {
   try {
     const query = `CALL GET_EMPLOYEE_BY_USERNAME(?)`;
     const [rows] = await db.query(query, [username]);
     
-    return rows;
+    return rows[0];
   } catch (error) {
     console.error('❌ Query failed:', error.message);
     throw error;
@@ -148,6 +148,18 @@ const getDependantsByEmployeeId = async (id) => {
     const [rows] = await db.query(query, [id]);
     return rows[0];
 }
+const userregister = async (user) => {
+    console.log(user);
+    const hashedPassword = await bcrypt.hash(user.password, 10);
+    const query = `CALL ADD_USER_ACCOUNT(?,?,?,?)`;
+    const [rows] = await db.query(query, [
+        user.username,
+        hashedPassword,
+        user.role,
+        user.employee_id
+    ]);
+    return rows[0];
+}
 
 export default {
   findByUsername,
@@ -165,5 +177,6 @@ export default {
   deleteEmergencyContact,
   getCustomAttributes,
   updateUser,
-  getDependantsByEmployeeId
+  getDependantsByEmployeeId,
+  userregister
 };
