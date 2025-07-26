@@ -1,6 +1,7 @@
 import express from 'express';
-import PIMControllers from '../Controllers/PIMControllers.js';
+import employeeController from '../Controllers/PIMControllers.js';
 const route = express.Router();
+import { authorizeRoles } from '../Middlewares/authorization.js';
 
 
 route.get('/employees', authorizeRoles('Admin','Manager'), employeeController.getAllEmployees);
